@@ -46,6 +46,212 @@ Elle permet de **suivre vos transactions**, **gérer vos abonnements récurrents
 
 ---
 
+## 🏗️ Architecture Globale
+
+```mermaid
+graph TB
+    %% Clients
+    subgraph "Clients"
+        WEB[Web Browser]
+        MOBILE[Mobile App]
+        POSTMAN[API Client]
+    end
+
+    %% Load Balancer
+    LB[Load Balancer]
+
+    %% Server Cluster
+    subgraph "Server Cluster"
+        SERVER1[Server Instance 1]
+        SERVER2[Server Instance 2]
+        SERVER3[Server Instance 3]
+    end
+
+    %% Application Layer
+    subgraph "Application Layer - Node.js/Express"
+        AUTH[Auth Controller]
+        TRANS[Transaction Controller]
+        SUBS[Subscription Controller]
+        MIDDLEWARE[Middleware Layer]
+    end
+
+    %% External Services
+    subgraph "External Services"
+        DB[(PostgreSQL\nNeon DB)]
+        CLOUD[Cloudinary\nImage Storage]
+        REDIS[Upstash Redis\nRate Limiting]
+        CRON[Cron Jobs\nAuto-ping]
+    end
+
+    %% Database Tables
+    subgraph "Database Schema"
+        USERS[users table]
+        TRANS_T[transactions table]
+        SUBS_T[subscriptions table]
+    end
+
+    %% Connections
+    WEB --> LB
+    MOBILE --> LB
+    POSTMAN --> LB
+    LB --> SERVER1
+    LB --> SERVER2
+    LB --> SERVER3
+    
+    SERVER1 --> MIDDLEWARE
+    SERVER2 --> MIDDLEWARE
+    SERVER3 --> MIDDLEWARE
+    
+    MIDDLEWARE --> AUTH
+    MIDDLEWARE --> TRANS
+    MIDDLEWARE --> SUBS
+    
+    AUTH --> USERS
+    TRANS --> TRANS_T
+    SUBS --> SUBS_T
+    SUBS --> CLOUD
+    
+    MIDDLEWARE --> REDIS
+    SERVER1 --> CRON
+    SERVER2 --> CRON
+    SERVER3 --> CRON
+    
+    USERS --> DB
+    TRANS_T --> DB
+    SUBS_T --> DB
+
+    %% Styling
+    classDef client fill:#e1f5fe
+    classDef server fill:#f3e5f5
+    classDef service fill:#e8f5e8
+    classDef database fill:#fff3e0
+    classDef external fill:#ffebee
+    
+    class WEB,MOBILE,POSTMAN client
+    class SERVER1,SERVER2,SERVER3,MIDDLEWARE,AUTH,TRANS,SUBS server
+    class USERS,TRANS_T,SUBS_T database
+    class CLOUD,REDIS,CRON external
+    class DB service
+```
+---
+
+## 🔐 Flux d'Authentification
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant R as Rate Limiter
+    participant A as Auth Controller
+    participant DB as Database
+    participant B as Bcrypt/JWT
+
+    C->>R: POST /api/auth/register
+    R-->>A: Request passed
+    A->>A: Validate input data
+    A->>DB: Check if user exists
+    DB-->>A: User not found
+    A->>B: Hash password
+    B-->>A: Hashed password
+    A->>DB: Create new user
+    DB-->>A: User created
+    A->>B: Generate JWT token
+    B-->>A: Token generated
+    A-->>C: 201 Created + User + Token
+
+```
+
+---
+
+## 🗄️ Structure des Données
+
+```mermaid
+erDiagram
+    users {
+        UUID id PK "DEFAULT uuid_generate_v4()"
+        VARCHAR username "UNIQUE, NOT NULL"
+        VARCHAR email "UNIQUE, NOT NULL"
+        VARCHAR password "NOT NULL"
+        VARCHAR profile_image "DEFAULT ''"
+        TIMESTAMPTZ created_at "DEFAULT CURRENT_TIMESTAMP"
+        TIMESTAMPTZ updated_at "DEFAULT CURRENT_TIMESTAMP"
+    }
+
+    transactions {
+        UUID id PK "DEFAULT uuid_generate_v4()"
+        UUID user_id FK
+        VARCHAR title "NOT NULL"
+        DECIMAL amount "NOT NULL"
+        VARCHAR category "NOT NULL"
+        DATE created_at "DEFAULT CURRENT_DATE"
+    }
+
+    subscriptions {
+        UUID id PK "DEFAULT uuid_generate_v4()"
+        UUID user_id FK
+        VARCHAR label "NOT NULL"
+        NUMERIC amount "NOT NULL"
+        DATE date "NOT NULL"
+        VARCHAR recurrence "NOT NULL"
+        INTEGER rating "CHECK (1-5)"
+        VARCHAR image_url
+        TIMESTAMP created_at "DEFAULT CURRENT_TIMESTAMP"
+    }
+
+    users ||--o{ transactions : "has"
+    users ||--o{ subscriptions : "has"
+```
+
+---
+
+
+## 📡 Flux Complet des Requêtes API
+
+```mermaid
+flowchart TD
+    Start([Request Start]) --> RateLimit{Rate Limit<br/>Check}
+    
+    RateLimit -- "❌ Too Many Requests" --> Error429[429 Too Many Requests]
+    
+    RateLimit -- "✅ Within Limit" --> AuthCheck{Auth Required?}
+    
+    AuthCheck -- "Public Route" --> PublicRoute[Process Public Request]
+    AuthCheck -- "Protected Route" --> VerifyToken{Verify JWT Token}
+    
+    VerifyToken -- "❌ Invalid/Expired" --> Error401[401 Unauthorized]
+    
+    VerifyToken -- "✅ Valid Token" --> ExtractUser[Extract User Data]
+    ExtractUser --> ValidateData{Validate Request Data}
+    
+    ValidateData -- "❌ Invalid Data" --> Error400[400 Bad Request]
+    
+    ValidateData -- "✅ Valid Data" --> BusinessLogic[Business Logic]
+    BusinessLogic --> DBOperation[Database Operation]
+    DBOperation --> Response[Send Response]
+    
+    Response --> End([Request End])
+    
+    Error429 --> End
+    Error401 --> End
+    Error400 --> End
+    
+    PublicRoute --> ValidateDataPublic{Validate Public Data}
+    ValidateDataPublic -- "✅ Valid" --> PublicBusiness[Public Business Logic]
+    ValidateDataPublic -- "❌ Invalid" --> Error400
+    PublicBusiness --> PublicDB[Public DB Operation]
+    PublicDB --> PublicResponse[Send Public Response]
+    PublicResponse --> End
+
+    classDef success fill:#c8e6c9
+    classDef error fill:#ffcdd2
+    classDef process fill:#bbdefb
+    
+    class RateLimit,AuthCheck,VerifyToken,ValidateData,ValidateDataPublic process
+    class Error429,Error401,Error400 error
+    class Response,PublicResponse success
+```
+
+---
+
 ## ⚙️ Installation et Démarrage
 
 ### 🔧 Prérequis
@@ -214,3 +420,4 @@ POST /api/subscriptions
 ## 📝 Licence
 
 Projet sous licence **MIT**.
+ 
