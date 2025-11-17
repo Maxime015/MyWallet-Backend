@@ -119,19 +119,6 @@ graph TB
     USERS --> DB
     TRANS_T --> DB
     SUBS_T --> DB
-
-    %% Styling
-    classDef client fill:#e1f5fe
-    classDef server fill:#f3e5f5
-    classDef service fill:#e8f5e8
-    classDef database fill:#fff3e0
-    classDef external fill:#ffebee
-    
-    class WEB,MOBILE,POSTMAN client
-    class SERVER1,SERVER2,SERVER3,MIDDLEWARE,AUTH,TRANS,SUBS server
-    class USERS,TRANS_T,SUBS_T database
-    class CLOUD,REDIS,CRON external
-    class DB service
 ```
 ---
 
@@ -157,7 +144,6 @@ sequenceDiagram
     A->>B: Generate JWT token
     B-->>A: Token generated
     A-->>C: 201 Created + User + Token
-
 ```
 
 ---
@@ -199,6 +185,7 @@ erDiagram
 
     users ||--o{ transactions : "has"
     users ||--o{ subscriptions : "has"
+
 ```
 
 ---
@@ -207,6 +194,7 @@ erDiagram
 ## 📡 Flux Complet des Requêtes API
 
 ```mermaid
+flowchart TD
 flowchart TD
     Start([Request Start]) --> RateLimit{Rate Limit<br/>Check}
     
@@ -241,13 +229,6 @@ flowchart TD
     PublicDB --> PublicResponse[Send Public Response]
     PublicResponse --> End
 
-    classDef success fill:#c8e6c9
-    classDef error fill:#ffcdd2
-    classDef process fill:#bbdefb
-    
-    class RateLimit,AuthCheck,VerifyToken,ValidateData,ValidateDataPublic process
-    class Error429,Error401,Error400 error
-    class Response,PublicResponse success
 ```
 
 ---
