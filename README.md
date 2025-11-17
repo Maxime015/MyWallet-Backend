@@ -195,7 +195,6 @@ erDiagram
 
 ```mermaid
 flowchart TD
-flowchart TD
     Start([Request Start]) --> RateLimit{Rate Limit<br/>Check}
     
     RateLimit -- "❌ Too Many Requests" --> Error429[429 Too Many Requests]
