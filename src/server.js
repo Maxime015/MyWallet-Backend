@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import { initDB } from './config/db.js';
-import rateLimiter from "./middleware/rateLimiter.js";
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
 import { fileURLToPath } from 'url';
@@ -32,8 +31,6 @@ app.set('trust proxy', true);
 // Middlewares
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(rateLimiter);
-
 
 // Route de documentation Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
