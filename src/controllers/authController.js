@@ -1,6 +1,7 @@
 import { sql, hashPassword, comparePassword } from '../config/db.js';
 import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
+import { sendWelcomeEmail } from "../emails/emailHandlers.js";
 
 // Fonction pour générer un token JWT
 const generateToken = (userId) => {
@@ -60,6 +61,8 @@ export const register = async (req, res) => {
       RETURNING id, username, email, profile_image, created_at
     `;
 
+    if (newUser) {
+
     const token = generateToken(newUser[0].id);
 
     res.status(201).json({
@@ -73,6 +76,17 @@ export const register = async (req, res) => {
         createdAt: newUser[0].created_at,
       },
     });
+
+      try {
+        await sendWelcomeEmail(newUser[0].email, newUser[0].username);
+      } catch (error) {
+        console.error("Failed to send welcome email:", error);
+      }
+
+    } else {
+      res.status(400).json({ message: "Invalid user data" });
+    }
+
   } catch (error) {
     console.error("Erreur dans la route d’inscription :", error);
     res.status(500).json({ message: "Erreur interne du serveur." });
